@@ -6,6 +6,7 @@ const orderArticleSchema = new mongoose.Schema({
   lastname: { type: String, required: true },
   email: { type: String, required: true },
   phone: { type: String, required: true },
+  methodPayment: { type: String, required: false },
   
   // Shipping Address
   shippingAddress: {

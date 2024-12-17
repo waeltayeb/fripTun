@@ -10,6 +10,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const articleRoutes = require('./routes/articleRoutes');
 const orderArticleRoutes = require('./routes/orderArticleRoutes');
 const settingsRoutes = require('./routes/settings');
+const paymentRoutes = require('./routes/payment');
 const multer = require('multer');
 const path = require('path');
 const http = require('http');
@@ -66,6 +67,7 @@ app.use('/api', articleRoutes);
 app.use('/api', settingsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api', orderArticleRoutes);
+app.use('/api', paymentRoutes);
 
 // Servir les fichiers statiques (les images)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

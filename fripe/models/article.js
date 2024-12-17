@@ -11,7 +11,8 @@ const articleSchema = new mongoose.Schema({
   isSold: { type: Boolean, required: false },
   price: { type: Number, required: true },
   newPrice: { type: Number, required: false },
-  status: { type: String, default: 'available' }
+  status: { type: String, default: 'available' },
+  
 });
 
 module.exports = mongoose.model('Article', articleSchema);

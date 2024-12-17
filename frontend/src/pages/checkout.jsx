@@ -5,10 +5,12 @@ import Footer from '../components/Footer';
 import Cart from '../components/Cart';
 import { useCart } from '../context/CartContext';
 import axios from 'axios';
+import { useSearchParams } from 'react-router-dom';
+
 
 function Checkout() {
     const navigate = useNavigate();
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isloggedin, setisloggedin] = useState(true);
     const [formData, setFormData] = useState({
         firstname: '',
         lastname: '',
@@ -28,18 +30,29 @@ function Checkout() {
             const id = localStorage.getItem('identifier');
             const token = localStorage.getItem('token');
             const role = localStorage.getItem('role');
+            
+            // Check if the user is logged in based on token and role
             if (token && role === '"client"') {
-                setIsLoggedIn(true);
-                const response = await axios.get(`http://localhost:5000/api/client/profile/${id}`);
-                setFormData(response.data);
+                setisloggedin(true);
+                // Set to true if the user is authenticated
+                try {
+                    const response = await axios.get(`http://localhost:5000/api/client/profile/${id}`);
+                    setFormData(response.data); // Set the user profile data
+                } catch (error) {
+                    console.log("Error fetching user data:", error);
+                }
+            } else {
+                setisloggedin(false);
+                 // Set to false if no valid token or wrong role
             }
         };
 
-        fetchUserData();
+        fetchUserData(); // Call the async function when component mounts
+
     }, []);
 
     const handleChange = (e) => {
-        if (!isLoggedIn) {
+        if (!isloggedin) {
             setFormData(prev => ({
                 ...prev,
                 [e.target.name]: e.target.value
@@ -68,7 +81,7 @@ function Checkout() {
             };
 
             // Add client ID if logged in
-            if (isLoggedIn) {
+            if (isloggedin) {
                 orderData.clientId = localStorage.getItem('identifier');
             }
 
@@ -77,7 +90,7 @@ function Checkout() {
             };
 
             // Add token if logged in
-            if (isLoggedIn) {
+            if (isloggedin) {
                 headers.Authorization = `Bearer ${localStorage.getItem('token')}`;
             }
 
@@ -86,9 +99,8 @@ function Checkout() {
                 headers,
                 body: JSON.stringify(orderData),
 
-            } ,
-            setLoading(true) 
-        );
+            } 
+            );
 
             if (!response.ok) {
                 setLoading(false);
@@ -100,7 +112,7 @@ function Checkout() {
 
             setLoading(false);
             clearCart();
-            if (isLoggedIn) {
+            if (isloggedin) {
                 navigate('/ClientDashboard');
             } else {
                 navigate('/Shop');
@@ -110,6 +122,146 @@ function Checkout() {
             console.error('Order submission error:', err);
         }
     };
+
+
+
+
+    const handlePayment = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+    
+        try {
+          const paymentData = {
+            firstname: formData.firstname,
+            lastname: formData.lastname,
+            email: formData.email,
+            phone: formData.phone,
+            shippingAddress: {
+              street: formData.avenue,
+              city: formData.city,
+              postalCode: formData.postal,
+            },
+            items: cart.map((item) => ({
+              articleId: item.id,
+              price: item.isSold ? item.newPrice : item.price,
+            })),
+            totalAmount: getCartTotal(),
+          };
+
+          localStorage.setItem("paymentData", JSON.stringify(paymentData));
+    
+          if (isloggedin) {
+            paymentData.clientId = localStorage.getItem("identifier");
+          }
+    
+          const response = await fetch("http://localhost:5000/api/payment", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(paymentData),
+          });
+
+          console.log(response);
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to process payment");
+          }
+
+          const paymentUrl = await response.json(); // Assuming the response contains a URL
+          if (paymentUrl && paymentUrl.result) {
+             setLoading(true);
+              window.location.href = paymentUrl.result.link; // Redirect to the payment page
+          } else {
+              throw new Error("Invalid payment response");
+          }
+        } catch (err) {
+          setError(err.message);
+          console.error("Erreur lors du traitement du paiement :", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const [searchParams] = useSearchParams();
+      const [result, setResult] = useState("");
+
+      useEffect(() => {
+        setLoading(true);
+        setError(null);
+      
+        const processPayment = async () => {
+          try {
+            const paymentId = searchParams.get('payment_id');
+            if (paymentId) {
+                            // 1. Vérification du paiement
+            const res = await axios.post(`http://localhost:5000/api/payment/${paymentId}`);
+            setResult(res.data.result?.status || "FAILED");
+      
+            if (res.data.result.status === "SUCCESS") {
+              // 2. Récupération des données de commande depuis localStorage
+              let orderData = localStorage.getItem("paymentData");
+              orderData = JSON.parse(orderData);
+                if (orderData) {
+                                  // Ajouter l'ID du client si l'utilisateur est connecté
+              if (isloggedin) {
+                const clientId = localStorage.getItem('identifier');
+                if (clientId) {
+                  orderData.clientId = clientId;
+                }
+              }
+      
+              // Headers pour la requête
+              const headers = {
+                'Content-Type': 'application/json',
+              };
+              if (isloggedin) {
+                const token = localStorage.getItem('token');
+                if (token) {
+                  headers.Authorization = `Bearer ${token}`;
+                }
+              }
+      
+              // 3. Envoi des données de commande
+              const response = await fetch('http://localhost:5000/api/ordersByCard', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(orderData),
+              });
+      
+              if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Échec de la soumission de la commande');
+              }
+      
+              // 4. Succès : Nettoyage et redirection
+              alert("Paiement réussi ! Cliquez sur OK pour continuer.");
+              clearCart();
+              localStorage.removeItem('paymentData');
+              navigate(isloggedin ? '/ClientDashboard' : '/Shop');
+                }
+
+            } else {
+              navigate('/checkout');
+            }
+            }
+      
+
+          } catch (err) {
+            console.error('Erreur de traitement du paiement:', err.message);
+            setError(err.message);
+          } finally {
+            setLoading(false);
+          }
+        };
+      
+        processPayment();
+      }, [searchParams, isloggedin, navigate, clearCart]);
+      
+      
+      
 
     if (loading) {
         return (
@@ -127,14 +279,14 @@ function Checkout() {
                 <div className="col-span-8">
                     <div className="border border-gray-200 p-6 rounded shadow-sm">
                         <h3 className="text-xl font-semibold capitalize mb-6">
-                            {isLoggedIn ? 'Shipping Details' : 'Enter Your Details'}
+                            {isloggedin ? 'Shipping Details' : 'Enter Your Details'}
                         </h3>
                         {error && (
                             <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
                                 {error}
                             </div>
                         )}
-                        <form onSubmit={handleSubmitOrder}>
+                        <form onSubmit={handleSubmitOrder} >
                             <div className="space-y-6">
                                 <div className="grid grid-cols-2 gap-6">
                                     <div>
@@ -146,7 +298,7 @@ function Checkout() {
                                             name="firstname"
                                             value={formData.firstname}
                                             onChange={handleChange}
-                                            disabled={isLoggedIn}
+                                            disabled={isloggedin}
                                             required
                                             className="w-full px-4 py-2 border rounded focus:ring-primary focus:border-primary"
                                         />
@@ -160,7 +312,7 @@ function Checkout() {
                                             name="lastname"
                                             value={formData.lastname}
                                             onChange={handleChange}
-                                            disabled={isLoggedIn}
+                                            disabled={isloggedin}
                                             required
                                             className="w-full px-4 py-2 border rounded focus:ring-primary focus:border-primary"
                                         />
@@ -175,7 +327,7 @@ function Checkout() {
                                         name="email"
                                         value={formData.email}
                                         onChange={handleChange}
-                                        disabled={isLoggedIn}
+                                        disabled={isloggedin}
                                         required
                                         className="w-full px-4 py-2 border rounded focus:ring-primary focus:border-primary"
                                     />
@@ -189,7 +341,7 @@ function Checkout() {
                                         name="avenue"
                                         value={formData.avenue}
                                         onChange={handleChange}
-                                        disabled={isLoggedIn}
+                                        disabled={isloggedin}
                                         required
                                         className="w-full px-4 py-2 border rounded focus:ring-primary focus:border-primary"
                                     />
@@ -203,7 +355,7 @@ function Checkout() {
                                         name="city"
                                         value={formData.city}
                                         onChange={handleChange}
-                                        disabled={isLoggedIn}
+                                        disabled={isloggedin}
                                         required
                                         className="w-full px-4 py-2 border rounded focus:ring-primary focus:border-primary"
                                     />
@@ -217,7 +369,7 @@ function Checkout() {
                                         name="postal"
                                         value={formData.postal}
                                         onChange={handleChange}
-                                        disabled={isLoggedIn}
+                                        disabled={isloggedin}
                                         required
                                         className="w-full px-4 py-2 border rounded focus:ring-primary focus:border-primary"
                                     />
@@ -231,7 +383,7 @@ function Checkout() {
                                         name="phone"
                                         value={formData.phone}
                                         onChange={handleChange}
-                                        disabled={isLoggedIn}
+                                        disabled={isloggedin}
                                         required
                                         className="w-full px-4 py-2 border rounded focus:ring-primary focus:border-primary"
                                     />
@@ -241,6 +393,13 @@ function Checkout() {
                                     className="block w-full py-3 px-4 text-center text-white bg-primary border border-primary rounded-md hover:bg-transparent hover:text-primary transition font-medium"
                                 >
                                     Place Order
+                                </button>
+                                <button
+                                    onClick={handlePayment}
+                                    type="button"
+                                    className="block w-full py-3 px-4 text-center text-white bg-primary border border-primary rounded-md hover:bg-transparent hover:text-primary transition font-medium"
+                                >
+                                    Pay with Card
                                 </button>
                             </div>
                         </form>

@@ -75,7 +75,7 @@ function ArticleForme() {
                 method: 'POST',
                 body: formDataToSend,
                 headers: {
-                    "Content-Type": "application/json", 
+                  
                     Authorization: `Bearer ${token}`,   
                   },
             });

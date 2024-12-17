@@ -40,7 +40,71 @@ router.post('/orders', async (req, res) => {
       items,
       totalAmount,
       clientId,
-      status: 'pending'
+      status: 'pending',
+      methodPayment: 'cash'
+    });
+
+    // Mark articles as unavailable
+    await Article.updateMany(
+      { _id: { $in: articleIds } },
+      { $set: { status: 'pending' } }
+    );
+
+    await newOrder.save();
+
+    res.status(201).json({
+      message: 'Order created successfully',
+      order: newOrder
+    });
+  } catch (err) {
+    console.error('Error creating order:', err);
+    res.status(500).json({ 
+      message: 'Error creating order', 
+      error: err.message 
+    });
+  }
+});
+
+
+// Create a new order pay with card
+router.post('/ordersByCard', async (req, res) => {
+  try {
+    const {
+      firstname,
+      lastname,
+      email,
+      phone,
+      shippingAddress,
+      items,
+      totalAmount,
+      clientId // optional
+    } = req.body;
+
+    // Validate items exist and are available
+    const articleIds = items.map(item => item.articleId);
+    const foundArticles = await Article.find({ 
+      _id: { $in: articleIds },
+      status: 'available' // only available articles
+    });
+
+    if (foundArticles.length !== items.length) {
+      return res.status(400).json({ 
+        message: 'One or more articles are unavailable or not found.' 
+      });
+    }
+
+    // Create new order
+    const newOrder = new OrderArticle({
+      firstname,
+      lastname,
+      email,
+      phone,
+      shippingAddress,
+      items,
+      totalAmount,
+      clientId,
+      status: 'pending',
+      methodPayment: 'card'
     });
 
     // Mark articles as unavailable

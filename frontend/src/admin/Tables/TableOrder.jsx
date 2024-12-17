@@ -249,6 +249,7 @@ const TableOrder = () => {
               <th className="py-4 px-4 font-medium text-black">Date</th>
               <th className="py-4 px-4 font-medium text-black">Amount</th>
               <th className="py-4 px-4 font-medium text-black">Status</th>
+              <th className="py-4 px-4 font-medium text-black">Pay With</th>
               <th className="py-4 px-4 font-medium text-black">Actions</th>
             </tr>
           </thead>
@@ -276,6 +277,7 @@ const TableOrder = () => {
                     <option value="cancelled">Cancelled</option>
                   </select>
                 </td>
+                <td className="border-b py-5 px-4 text-pink-600">{order.methodPayment}</td>
                 <td className="border-b py-5 px-4">
                   <div className="flex items-center space-x-3.5">
                     <button
