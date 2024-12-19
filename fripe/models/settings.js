@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
-const setingsShema = new mongoose.Schema({
-  imagepanner: { type: String, required: true , default:"" },
-  imagepub: { type: String, required: true, unique: true, default:""  },
+const SettingsSchema = new mongoose.Schema({
+  bannerUrl: { type: String, default: null },
+  bannerPublicId: { type: String, default: null },
+  pubUrl: { type: String, default: null },
+  pubPublicId: { type: String, default: null },
+}, { timestamps: true });
 
-});
-
-module.exports = mongoose.model('Settings', setingsShema);
-/// ki uploadi ifse5 l9dima w hot jdida w tap9a b nfes isem
+module.exports = mongoose.model('Settings', SettingsSchema);

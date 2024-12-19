@@ -64,7 +64,7 @@ app.use('/api/client', clientRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', articleRoutes);
-app.use('/api', settingsRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api', orderArticleRoutes);
 app.use('/api', paymentRoutes);

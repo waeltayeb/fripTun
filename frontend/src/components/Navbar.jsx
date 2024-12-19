@@ -3,6 +3,7 @@ import { FaShoppingCart } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { HiMenuAlt3 } from 'react-icons/hi';
 import { MdClose } from 'react-icons/md';
+import { Warehouse } from 'lucide-react';
 import Cart from './Cart';
 import { useCart } from '../context/CartContext';
 
@@ -10,6 +11,7 @@ function Navbar() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [dropdown, setDropdown] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
     const { getCartCount } = useCart();
 
     const toggleDropdown = () => {
@@ -26,7 +28,13 @@ function Navbar() {
     // Check for token to determine login status
     useEffect(() => {
         const token = localStorage.getItem('token');
-        setIsLoggedIn(!!token);
+        const role = localStorage.getItem('role');
+        if (token && role === '"client"') {
+            setIsLoggedIn(!!token);
+        }else if ( token && role === '"admin"') {
+            setIsAdmin(!!token);
+        }
+        
     }, []);
 
     // Close cart dropdown when clicking outside
@@ -88,16 +96,23 @@ function Navbar() {
                             {isLoggedIn ? (
                                 <Link
                                     to="/ClientDashboard"
-                                    className="px-4 py-2 text-white bg-red-500 rounded hover:bg-red-600 transition"
+                                    className="px-4 py-2 text-white bg-red-500 rounded hover:bg-red-600 transition flex"
                                 >
-                                    Space
+                                     <span className='mr-2'> Space </span> <Warehouse />
+                                </Link>
+                            ) : isAdmin ? (
+                                <Link
+                                    to="/admin"
+                                    className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600 transition flex "
+                                >
+                                     <span className='mr-2 max-md:hidden'>Admin</span> <Warehouse />
                                 </Link>
                             ) : (
                                 <Link
                                     to="/login"
-                                    className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600 transition"
+                                    className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600 transition flex"
                                 >
-                                    Login
+                                    <span className='mr-2 max-md:hidden'>Login</span> <Warehouse />
                                 </Link>
                             )}
                         </div>

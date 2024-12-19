@@ -4,6 +4,7 @@ import axios from 'axios';
 import Navbar from '../../components/ComponentClient/NavBar';
 import { Link } from 'react-router-dom';
 import Chatbox from '../../components/ComponentClient/chatClient';
+import PubImage from '../../components/PubImage';
 
 function Profile() {
   const [userData, setUserData] = useState({
@@ -206,7 +207,7 @@ function Profile() {
           />
         </div>
         <div className="lg:col-span-2">
-          <img src="/assets/images/offer.jpg" alt="Offer" />
+        <PubImage />
         </div>
       </div>
       <Chatbox />
