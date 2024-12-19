@@ -10,6 +10,7 @@ import Chatbox from '../../components/ComponentClient/chatClient';
 function DashboardClient() {
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [id_client, setIdClient] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,6 +18,7 @@ function DashboardClient() {
       try {
         const token = localStorage.getItem('token');
         const id = localStorage.getItem('identifier');
+        setIdClient(id);
         
         if (!token || !id) {
           navigate('/login');
@@ -76,7 +78,7 @@ function DashboardClient() {
           {orderData?.orders && <OrdersClient orders={orderData.orders} />}
         </div>
       </div>
-      <Chatbox clientId="6756ebfd121a1e51db33e33a" />
+      <Chatbox clientId={id_client} />
 
     </>
   );

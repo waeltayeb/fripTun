@@ -3,7 +3,7 @@ import { FaShoppingCart } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { HiMenuAlt3 } from 'react-icons/hi';
 import { MdClose } from 'react-icons/md';
-import { Warehouse } from 'lucide-react';
+import { Warehouse, LogIn } from 'lucide-react';
 import Cart from './Cart';
 import { useCart } from '../context/CartContext';
 
@@ -21,8 +21,8 @@ function Navbar() {
     const navLink = [
         { name: "Home", link: "/" },
         { name: "Shop", link: "/shop" },
-        { name: "About", link: "/pages/about.html" },
-        { name: "Contact", link: "/pages/contact.html" },
+        { name: "About", link: "/about" },
+        { name: "Contact", link: "/contact" },
     ];
 
     // Check for token to determine login status
@@ -98,7 +98,7 @@ function Navbar() {
                                     to="/ClientDashboard"
                                     className="px-4 py-2 text-white bg-red-500 rounded hover:bg-red-600 transition flex"
                                 >
-                                     <span className='mr-2'> Space </span> <Warehouse />
+                                     <span className='mr-2  max-md:hidden '> Space </span> <Warehouse />
                                 </Link>
                             ) : isAdmin ? (
                                 <Link
@@ -112,7 +112,7 @@ function Navbar() {
                                     to="/login"
                                     className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600 transition flex"
                                 >
-                                    <span className='mr-2 max-md:hidden'>Login</span> <Warehouse />
+                                    <span className='mr-2 max-md:hidden'>Login</span> <LogIn />
                                 </Link>
                             )}
                         </div>

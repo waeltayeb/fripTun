@@ -5,14 +5,81 @@ const { body, validationResult } = require('express-validator');
 
 const router = express.Router();
 
-// Get all users with the "client" role
+// Get all users with the "client" role and their last messages
 router.get('/users', async (req, res) => {
   try {
     const users = await User.find({ role: 'client' });
-    res.status(200).json(users);
+    
+    // Get last message for each user
+    const usersWithLastMessage = await Promise.all(
+      users.map(async (user) => {
+        const lastMessage = await Chat.findOne({ userId: user._id })
+          .sort({ timestamp: -1 })
+          .select('text timestamp');
+          
+        return {
+          ...user.toObject(),
+          lastMessage: lastMessage ? {
+            text: lastMessage.text,
+            timestamp: lastMessage.timestamp
+          } : null
+        };
+      })
+    );
+    
+    res.status(200).json(usersWithLastMessage);
   } catch (err) {
     console.error('Error fetching users:', err);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get last message for each user (separate endpoint)
+router.get('/users/last-messages', async (req, res) => {
+  try {
+    // Get all clients
+    const users = await User.find({ role: 'client' });
+    
+    // Get last message for each user using aggregation
+    const lastMessages = await Chat.aggregate([
+      {
+        $sort: { timestamp: -1 }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          lastMessage: { $first: '$$ROOT' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      {
+        $unwind: '$user'
+      },
+      {
+        $project: {
+          userId: '$_id',
+          userName: '$user.firstname',
+          message: '$lastMessage.text',
+          timestamp: '$lastMessage.timestamp',
+          sender: '$lastMessage.sender'
+        }
+      },
+      {
+        $sort: { timestamp: -1 }
+      }
+    ]);
+
+    res.status(200).json(lastMessages);
+  } catch (err) {
+    console.error('Error fetching last messages:', err);
+    res.status(500).json({ error: 'Failed to fetch last messages' });
   }
 });
 

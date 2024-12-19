@@ -15,10 +15,43 @@ const ChatAdmin = () => {
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null); // To scroll to the bottom of the chat
 
-  // Fetch user list from backend
+  // Separate socket listener from user fetching
+  useEffect(() => {
+    // Listen for real-time updates from the server
+    socket.on("receiveMessage", (message) => {
+      if (message.userId === activeUser?._id) {
+        setMessages((prevMessages) => {
+          // Check if message already exists (by tempId or content)
+          const messageExists = prevMessages.some((m) =>
+            (m.tempId && m.tempId === message.tempId) ||
+            (m.text === message.text && m.timestamp === message.timestamp)
+          );
+          if (!messageExists) {
+            return [...prevMessages, message];
+          }
+          return prevMessages;
+        });
+        scrollToBottom();
+      }
+    });
+
+    // Listen for message errors
+    socket.on("messageError", (error) => {
+      console.error("Message error:", error);
+      // You could show an error notification here
+    });
+
+    return () => {
+      socket.off("receiveMessage");
+      socket.off("messageError");
+    };
+  }, [activeUser?._id]);
+
+  // Fetch user list from backend - separate effect
   useEffect(() => {
     const fetchUsers = async () => {
       try {
+        // Using the enhanced users endpoint that includes last messages
         const response = await axios.get("http://localhost:5000/api/chat/users");
         setUsers(response.data);
         setIsLoadingUsers(false);
@@ -30,18 +63,11 @@ const ChatAdmin = () => {
 
     fetchUsers();
 
-    // Listen for real-time updates from the server
-    socket.on("receiveMessage", (message) => {
-      if (message.userId === activeUser?._id) {
-        setMessages((prevMessages) => [...prevMessages, message]);
-        scrollToBottom();
-      }
-    });
+    // Set up an interval to refresh the user list
+    const interval = setInterval(fetchUsers, 30000); // Refresh every 30 seconds
 
-    return () => {
-      socket.off("receiveMessage");
-    };
-  }, [activeUser]);
+    return () => clearInterval(interval);
+  }, []);
 
   // Scroll to the bottom of the chat
   const scrollToBottom = () => {
@@ -69,27 +95,23 @@ const ChatAdmin = () => {
 
   // Handle sending a new message
   const handleSendMessage = async () => {
-    if (newMessage.trim() === "") return;
+    if (newMessage.trim() === "" || !activeUser) return;
 
     const messageData = {
-      sender: "admin", // Ensure this is correct
-      text: newMessage, // The message content
-      userId: activeUser._id, // The recipient's user ID
+      sender: "admin",
+      text: newMessage,
+      userId: activeUser._id,
+      timestamp: new Date().toISOString(),
     };
 
     try {
-      // Send the message to the backend
-      const response = await axios.post("http://localhost:5000/api/chat/send", messageData);
-
-      // Optimistically add the message to the UI
-      setMessages((prevMessages) => [...prevMessages, response.data]);
+      // Clear input immediately for better UX
       setNewMessage("");
-      scrollToBottom();
-
-      // Emit the new message via socket
-      socket.emit("newMessage", response.data);
+      
+      // Emit through socket for instant display
+      socket.emit("newMessage", messageData);
     } catch (error) {
-      console.error("Error sending message:", error.response?.data || error.message);
+      console.error("Error sending message:", error);
     }
   };
 
@@ -130,14 +152,25 @@ const ChatAdmin = () => {
               >
                 <div className="w-1/4">
                   <img
-                    src={user.avatar}
+                    src="https://res.cloudinary.com/dy7sxgoty/image/upload/v1734643097/clients_lpqouh.png"
                     className="object-cover h-12 w-12 rounded-full"
                     alt={user.firstname}
                   />
                 </div>
                 <div className="w-full">
                   <div className="text-lg font-semibold">{user.firstname}</div>
-                  <span className="text-gray-500">{user.lastMessage}</span>
+                  {user.lastMessage && (
+                    <div className="flex flex-col">
+                      <span className="text-gray-500 text-sm">
+                        {user.lastMessage.text.length > 30
+                          ? user.lastMessage.text.substring(0, 30) + "..."
+                          : user.lastMessage.text}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(user.lastMessage.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -173,7 +206,7 @@ const ChatAdmin = () => {
                 >
                   {message.sender !== "admin" && (
                     <img
-                      src={activeUser.avatar}
+                      src="https://res.cloudinary.com/dy7sxgoty/image/upload/v1734643097/clients_lpqouh.png"
                       className="object-cover h-8 w-8 rounded-full"
                       alt={activeUser.firstname}
                     />
@@ -189,7 +222,7 @@ const ChatAdmin = () => {
                   </div>
                   {message.sender === "admin" && (
                     <img
-                      src="https://source.unsplash.com/vpOeXr5wmR4/600x600"
+                      src="https://res.cloudinary.com/dy7sxgoty/image/upload/v1734644248/admin_r9wg8r.jpg"
                       className="object-cover h-8 w-8 rounded-full"
                       alt="Admin"
                     />

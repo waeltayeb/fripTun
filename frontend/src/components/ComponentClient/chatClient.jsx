@@ -11,6 +11,38 @@ const Chatbox = ({ clientId }) => {
   const chatboxRef = useRef(null);
 
   useEffect(() => {
+    // Listen for real-time new messages - moved outside isChatboxOpen
+    socket.on("receiveMessage", (message) => {
+      if (message.userId === clientId) {
+        setMessages((prev) => {
+          // Check if message already exists (by tempId or content)
+          const messageExists = prev.some((m) =>
+            (m.tempId && m.tempId === message.tempId) ||
+            (m.text === message.text && m.timestamp === message.timestamp)
+          );
+          if (!messageExists) {
+            return [...prev, message];
+          }
+          return prev;
+        });
+        scrollToBottom();
+      }
+    });
+
+    // Listen for message errors
+    socket.on("messageError", (error) => {
+      console.error("Message error:", error);
+      // You could show an error notification to the user here
+    });
+
+    // Cleanup socket listener when component unmounts
+    return () => {
+      socket.off("receiveMessage");
+      socket.off("messageError");
+    };
+  }, [clientId]); // Only depend on clientId
+
+  useEffect(() => {
     if (isChatboxOpen) {
       // Fetch chat history for the client
       const fetchMessages = async () => {
@@ -26,19 +58,6 @@ const Chatbox = ({ clientId }) => {
       };
 
       fetchMessages();
-
-      // Listen for real-time new messages
-      socket.on("receiveMessage", (message) => {
-        if (message.userId === clientId) {
-          setMessages((prev) => [...prev, message]);
-          scrollToBottom();
-        }
-      });
-
-      // Cleanup socket listener when component unmounts
-      return () => {
-        socket.off("receiveMessage");
-      };
     }
   }, [isChatboxOpen, clientId]);
 
@@ -57,22 +76,18 @@ const Chatbox = ({ clientId }) => {
     if (userInput.trim() === "") return;
 
     const messageData = {
-      sender: "client", // Fixed sender as client
+      sender: "client",
       text: userInput,
       userId: clientId,
+      timestamp: new Date().toISOString(),
     };
 
     try {
-      // Send message to the backend
-      const response = await axios.post("http://localhost:5000/api/chat/send", messageData);
-
-      // Emit the new message via socket
-      socket.emit("newMessage", response.data);
-
-      // Optimistically update UI
-      setMessages((prev) => [...prev, response.data]);
+      // Clear input immediately for better UX
       setUserInput("");
-      scrollToBottom();
+      
+      // Emit through socket for instant display
+      socket.emit("newMessage", messageData);
     } catch (err) {
       console.error("Error sending message:", err);
     }

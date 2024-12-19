@@ -1,6 +1,6 @@
 import './App.css';
 import Home from './pages/Home';
-import Contact from './pages/Contact';
+import Contact from './pages/Contact.jsx';
 import Shop from './pages/shop';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import Login from './pages/Login';
@@ -18,11 +18,13 @@ import Register from './pages/Register.jsx';
 import ProtectedRoute from './Protected/ProtectedRoute.jsx';
 import ProtectedAdmin from './Protected/ProtectedAdmin.jsx';
 import { CartProvider } from './context/CartContext';
+import About from './pages/About.jsx';
+import NotFound from './pages/NotFound.jsx';
 
 function App() {
   return (
-    <CartProvider>
-      <BrowserRouter future={{ v7_startTransition: true }}>
+    <BrowserRouter future={{ v7_startTransition: true }}>
+      <CartProvider>
         <Routes>
           <Route path='/' element={<Home />} />
           <Route path='/checkout' element={<Checkout />} />
@@ -30,7 +32,8 @@ function App() {
           <Route path='/shop' element={<Shop />} />
           <Route path='/login' element={<Login />} />
           <Route path='/Register' element={<Register />} />
-          <Route path='*' element={<h1>404</h1>} />
+          <Route path='/about' element={<About />} />
+          <Route path='*' element={<NotFound />} />
           <Route path='/admin' element={ <ProtectedAdmin> <Dashboard /> </ProtectedAdmin>} /> 
           <Route path='/ListArticle' element={<ProtectedAdmin> <ListArticle /> </ProtectedAdmin>} />
           <Route path='/ListOrder' element={<ListOrder />} />
@@ -42,8 +45,8 @@ function App() {
           <Route path='/Edit/:id' element={<EditArticle />} />
           
         </Routes>
-      </BrowserRouter>
-    </CartProvider>
+      </CartProvider>
+    </BrowserRouter>
   );
 }
 

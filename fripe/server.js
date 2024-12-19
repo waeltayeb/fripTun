@@ -54,27 +54,24 @@ app.use('/api', paymentRoutes);
 
 // Socket.IO Logic
 io.on('connection', (socket) => {
- 
-
   // Listen for new messages
   socket.on('newMessage', async (data) => {
-   
-  
     // Remove _id if present to allow MongoDB to generate it automatically
     delete data._id;
+
+    // Emit the message immediately for instant display
+    io.emit('receiveMessage', { ...data, tempId: socket.id + Date.now() });
   
     try {
-      // Save the message to the database
+      // Save to database asynchronously
       const newChat = new Chat(data);
       await newChat.save();
-  
-      // Emit the message to all connected clients
-      io.emit('receiveMessage', data); // Broadcast to all
     } catch (err) {
       console.error('Error saving chat message:', err);
+      // Optionally emit an error event if save fails
+      socket.emit('messageError', { error: 'Failed to save message' });
     }
   });
-  
 
   // Disconnect event
   socket.on('disconnect', () => {
