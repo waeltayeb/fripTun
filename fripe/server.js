@@ -2,7 +2,12 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const { Server } = require('socket.io');
+const http = require('http');
+const path = require('path');
+const Chat = require('./models/Chat'); // Ensure you have the Chat model
 
+// Import Routes
 const clientRoutes = require('./routes/clientRoutes');
 const userRoutes = require('./routes/userRoute');
 const adminRoutes = require('./routes/adminRoutes');
@@ -11,52 +16,30 @@ const articleRoutes = require('./routes/articleRoutes');
 const orderArticleRoutes = require('./routes/orderArticleRoutes');
 const settingsRoutes = require('./routes/settings');
 const paymentRoutes = require('./routes/payment');
-const multer = require('multer');
-const path = require('path');
-const http = require('http');
-const socketIo = require('socket.io');
 
 const app = express();
-
-// Enable CORS for all routes
-app.use(cors());
-
-//////////////////////////
 const server = http.createServer(app);
-const io = socketIo(server, {
+const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"]
-  }
+    origin: "http://localhost:3000", // Allow requests from your frontend
+    methods: ["GET", "POST"],
+  },
 });
-
-module.exports.io = io;
 
 // Middleware
+app.use(cors()); // Enable CORS
 app.use(bodyParser.json());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Serve static files
 
-mongoose.connect('mongodb://localhost:27017/boutique', { useNewUrlParser: true, useUnifiedTopology: true })
+// Database Connection
+mongoose
+  .connect('mongodb://localhost:27017/boutique', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.log('MongoDB connection error:', err));
-
-// Connexion Socket.io
-let users = {};
-
-io.on('connection', (socket) => {
-  console.log('Un utilisateur est connecté: ' + socket.id);
-
-  // Enregistrer un utilisateur
-  socket.on('register', (userId, userType) => {
-    users[userId] = socket.id;
-    console.log(`Utilisateur ${userId} de type ${userType} connecté`);
-  });
-
-  // Déconnexion de l'utilisateur
-  socket.on('disconnect', () => {
-    console.log('Utilisateur déconnecté: ' + socket.id);
-  });
-});
+  .catch((err) => console.log('MongoDB connection error:', err));
 
 // Routes
 app.use('/api', chatRoutes);
@@ -69,10 +52,37 @@ app.use('/api/chat', chatRoutes);
 app.use('/api', orderArticleRoutes);
 app.use('/api', paymentRoutes);
 
-// Servir les fichiers statiques (les images)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Socket.IO Logic
+io.on('connection', (socket) => {
+ 
 
-// Start server
+  // Listen for new messages
+  socket.on('newMessage', async (data) => {
+   
+  
+    // Remove _id if present to allow MongoDB to generate it automatically
+    delete data._id;
+  
+    try {
+      // Save the message to the database
+      const newChat = new Chat(data);
+      await newChat.save();
+  
+      // Emit the message to all connected clients
+      io.emit('receiveMessage', data); // Broadcast to all
+    } catch (err) {
+      console.error('Error saving chat message:', err);
+    }
+  });
+  
+
+  // Disconnect event
+  socket.on('disconnect', () => {
+    
+  });
+});
+
+// Start the Server
 server.listen(5000, () => {
   console.log('Server is running on port 5000');
 });

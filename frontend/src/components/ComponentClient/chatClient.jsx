@@ -1,38 +1,81 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import io from "socket.io-client";
+import axios from "axios";
 
-const Chatbox = () => {
-  const [isChatboxOpen, setIsChatboxOpen] = useState(false); // State to toggle chatbox visibility
-  const [messages, setMessages] = useState([
-    { text: "Hello", sender: "user" },
-    { text: "This is a response from the chatbot.", sender: "bot" },
-    { text: "This is an example of chat.", sender: "user" },
-    { text: "This is a response from the chatbot.", sender: "bot" },
-    { text: "Designed with Tailwind.", sender: "user" },
-    { text: "This is a response from the chatbot.", sender: "bot" },
-  ]);
+const socket = io("http://localhost:5000"); // Update with your server URL
+
+const Chatbox = ({ clientId }) => {
+  const [isChatboxOpen, setIsChatboxOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
   const [userInput, setUserInput] = useState("");
   const chatboxRef = useRef(null);
 
-  // Function to toggle chatbox visibility
+  useEffect(() => {
+    if (isChatboxOpen) {
+      // Fetch chat history for the client
+      const fetchMessages = async () => {
+        try {
+          const response = await axios.get(
+            `http://localhost:5000/api/chat/messages/${clientId}`
+          );
+          setMessages(response.data);
+          scrollToBottom();
+        } catch (err) {
+          console.error("Error fetching messages:", err);
+        }
+      };
+
+      fetchMessages();
+
+      // Listen for real-time new messages
+      socket.on("receiveMessage", (message) => {
+        if (message.userId === clientId) {
+          setMessages((prev) => [...prev, message]);
+          scrollToBottom();
+        }
+      });
+
+      // Cleanup socket listener when component unmounts
+      return () => {
+        socket.off("receiveMessage");
+      };
+    }
+  }, [isChatboxOpen, clientId]);
+
+  // Scroll to the bottom of the chatbox
+  const scrollToBottom = () => {
+    if (chatboxRef.current) {
+      chatboxRef.current.scrollTop = chatboxRef.current.scrollHeight;
+    }
+  };
+
   const toggleChatbox = () => {
     setIsChatboxOpen((prev) => !prev);
   };
 
-  // Function to handle sending a message
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (userInput.trim() === "") return;
 
-    setMessages((prev) => [...prev, { text: userInput, sender: "user" }]);
-    setUserInput("");
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { text: "This is a response from the chatbot.", sender: "bot" },
-      ]);
-      if (chatboxRef.current) {
-        chatboxRef.current.scrollTop = chatboxRef.current.scrollHeight;
-      }
-    }, 500);
+    const messageData = {
+      sender: "client", // Fixed sender as client
+      text: userInput,
+      userId: clientId,
+    };
+
+    try {
+      // Send message to the backend
+      const response = await axios.post("http://localhost:5000/api/chat/send", messageData);
+
+      // Emit the new message via socket
+      socket.emit("newMessage", response.data);
+
+      // Optimistically update UI
+      setMessages((prev) => [...prev, response.data]);
+      setUserInput("");
+      scrollToBottom();
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
   };
 
   return (
@@ -57,7 +100,7 @@ const Chatbox = () => {
               d="M12 6v6m0 0v6m0-6h6m-6 0H6"
             />
           </svg>
-          Chat 
+          Chat
         </button>
       </div>
 
@@ -67,7 +110,7 @@ const Chatbox = () => {
           <div className="bg-white shadow-md rounded-lg max-w-lg w-full">
             {/* Header */}
             <div className="p-4 border-b bg-blue-500 text-white rounded-t-lg flex justify-between items-center">
-              <p className="text-lg font-semibold">Admin Bot</p>
+              <p className="text-lg font-semibold">Chat</p>
               <button
                 onClick={toggleChatbox}
                 className="text-gray-300 hover:text-gray-400 focus:outline-none focus:text-gray-400"
@@ -90,20 +133,17 @@ const Chatbox = () => {
             </div>
 
             {/* Chatbox */}
-            <div
-              ref={chatboxRef}
-              className="p-4 h-80 overflow-y-auto"
-            >
+            <div ref={chatboxRef} className="p-4 h-80 overflow-y-auto">
               {messages.map((message, index) => (
                 <div
                   key={index}
                   className={`mb-2 ${
-                    message.sender === "user" ? "text-right" : ""
+                    message.sender === "client" ? "text-right" : "text-left"
                   }`}
                 >
                   <p
                     className={`py-2 px-4 inline-block rounded-lg ${
-                      message.sender === "user"
+                      message.sender === "client"
                         ? "bg-blue-500 text-white"
                         : "bg-gray-200 text-gray-700"
                     }`}

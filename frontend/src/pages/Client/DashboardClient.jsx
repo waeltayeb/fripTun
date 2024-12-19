@@ -76,7 +76,8 @@ function DashboardClient() {
           {orderData?.orders && <OrdersClient orders={orderData.orders} />}
         </div>
       </div>
-      <Chatbox />
+      <Chatbox clientId="6756ebfd121a1e51db33e33a" />
+
     </>
   );
 }
